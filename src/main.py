@@ -24,6 +24,8 @@ best_acc_epoch = 0
 avg_training_time_per_epoch = 0
 avg_testing_time_per_epoch = 0
 
+PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
+print(PROJECT_DIR)
 def train(model, data_loader, optimizer, epoch, train_mloss, train_rloss, train_acc, learning_rate, lr_wr, output_tensor):
     """
     Train CapsuleNet model on training set
@@ -312,9 +314,9 @@ def main(arguments=None):
                         default=28, help='input image width to the convolution. default=28 for MNIST')
     parser.add_argument('--input-height', type=int,
                         default=28, help='input image height to the convolution. default=28 for MNIST')
-    parser.add_argument('--directory', type=str, default='../results',
+    parser.add_argument('--directory', type=str, default=PROJECT_DIR / 'results',
                         help='directory to store results')
-    parser.add_argument('--data-directory', type=str, default='../data',
+    parser.add_argument('--data-directory', type=str, default=PROJECT_DIR / 'data',
                         help='directory to store data')
     parser.add_argument('--description', type=str, default='no description',
                         help='description to store together with results')
