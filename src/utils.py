@@ -32,9 +32,10 @@ RESULT_DIRECTORY = pathlib.Path(__file__).absolute().resolve().parent.parent / '
 PICKLE_COMPRESSION = True
 DEFAULT_PICKLE_COMPRESSION = 'lzma'
 DEFAULT_PICKLE_EXTENSION = 'pkl'
+SAVE_FULL_OBJECT =
 
 # wrapper to use compress pickle if installed
-def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, directory=RESULT_DIRECTORY):
+def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, directory=RESULT_DIRECTORY, use_compression=PICKLE_COMPRESSION):
     filename = str(filename)
     if not os.path.isabs(filename):
         filename = os.path.join(directory, filename)
@@ -44,13 +45,13 @@ def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, director
     except OSError:
         pass
 
-    if compress_pickle is not None and PICKLE_COMPRESSION:
+    if compress_pickle is not None and use_compression:
         if os.path.splitext(filename)[0] == filename:
             filename = '.'.join([filename, default_compression])
         compress_pickle.dump(obj, filename)
     else:
         if os.path.splitext(filename)[0] == filename:
-            filename = '.'.join([filename, DEFAULT_PICKLE_EXTENSION])
+            filename = '.'.join([filename, use_compression])
         with open(filename, 'wb') as f:
             pickle.dump(obj, f)
 
