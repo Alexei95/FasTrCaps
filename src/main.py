@@ -248,7 +248,7 @@ def test(model, data_loader, num_train_batches, epoch, test_mloss, test_rloss, t
         best_acc = accuracy_percentage
         best_acc_epoch = epoch
         test_loader = data_loader
-        utils.dump(utils.make_checkpoint_obj(locals()), directory / 'trained_model/FP32_model')
+        utils.dump(utils.make_partial_checkpoint_obj(locals()), directory / 'trained_model/FP32_model')
 
 
 def main(arguments=None):
@@ -526,6 +526,8 @@ def main(arguments=None):
     learning_rate = open(learning_rate, args.file_flag)
     output_tensor = open(output_tensor, args.file_flag)
 
+    utils.dump(utils.make_dataset_obj(locals()), args.directory / 'trained_model' / 'dataset')
+
     # Train and test
     try:
         for epoch in range(starting_epoch, args.epochs + 1):
@@ -567,7 +569,7 @@ def main(arguments=None):
             output_tensor.flush()
 
             # Save model checkpoint
-            utils.checkpoint(utils.make_checkpoint_obj(locals()), epoch, directory=args.directory)
+            utils.checkpoint(utils.make_partial_checkpoint_obj(locals()), epoch, directory=args.directory)
     except KeyboardInterrupt:
         print("\n\n\nKeyboardInterrupt, Interrupting...")
 

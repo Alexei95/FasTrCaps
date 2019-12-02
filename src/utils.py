@@ -94,7 +94,7 @@ def one_hot_encode(target, length):
 
     return one_hot_vec
 
-def make_checkpoint_obj(dict_):
+def make_full_checkpoint_obj(dict_):
     model = dict_.get('model', None)
     optimizer = dict_.get('optimizer', None)
     lr_wr = dict_.get('lr_wr', None)
@@ -108,6 +108,29 @@ def make_checkpoint_obj(dict_):
             'lr_wr_obj': lr_wr,
             'args': dict_.get('args', None),
             'loss_func': dict_.get('loss_func', None),
+            'train_loader': dict_.get('train_loader', None),
+            'test_loader': dict_.get('test_loader', None),
+            }
+
+def make_partial_checkpoint_obj(dict_):
+    model = dict_.get('model', None)
+    optimizer = dict_.get('optimizer', None)
+    lr_wr = dict_.get('lr_wr', None)
+    return {
+            'epoch': dict_.get('epoch', float('nan')) + 1,
+            'model': model,
+            'optimizer': optimizer,
+            'model_state_dict': model.state_dict() if model is not None else None,
+            'optimizer_state_dict': optimizer.state_dict() if optimizer is not None else None,
+            'lr_wr' : lr_wr.__dict__ if lr_wr is not None else None,
+            'lr_wr_obj': lr_wr,
+            'args': dict_.get('args', None),
+            'loss_func': dict_.get('loss_func', None),
+            }
+
+def make_dataset_obj(dict_):
+    return {
+            'args': dict_.get('args', None),
             'train_loader': dict_.get('train_loader', None),
             'test_loader': dict_.get('test_loader', None),
             }
