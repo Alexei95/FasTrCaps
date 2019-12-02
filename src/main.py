@@ -25,7 +25,7 @@ avg_training_time_per_epoch = 0
 avg_testing_time_per_epoch = 0
 
 PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
-print(PROJECT_DIR)
+# print(PROJECT_DIR)
 def train(model, data_loader, optimizer, epoch, train_mloss, train_rloss, train_acc, learning_rate, lr_wr, output_tensor):
     """
     Train CapsuleNet model on training set
