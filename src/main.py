@@ -374,6 +374,8 @@ def main(arguments=None):
 
     args = parser.parse_args(args=arguments)
 
+    args.directory = pathlib.Path(args.directory)
+
     print(args)
 
     if args.old_model:
@@ -457,7 +459,7 @@ def main(arguments=None):
 
 
     if args.restart_training:
-        p = pathlib.Path(args.directory + '/trained_model')
+        p = pathlib.Path(args.directory) / + 'trained_model'
         if p.exists():
             l = list(p.iterdir())
             if l:
@@ -485,32 +487,30 @@ def main(arguments=None):
     print('\nTotal number of parameters: {}\n'.format(num_params + (11520 if args.dataset in ('mnist', 'fashionmnist') else 20480)))
 
     # Make model checkpoint directory
-    if not os.path.exists(args.directory + '/trained_model'):
-        os.makedirs(args.directory + '/trained_model')
-    if not os.path.exists(args.directory):
-        os.makedirs(args.directory)
+    if not (args.directory / 'trained_model').is_dir():
+        (args.directory / 'trained_model').mkdir(parents=True, exist_ok=True)
 
     # files to store accuracies and losses
-    train_mloss = os.path.join(args.directory, 'train_margin_loss.txt')
-    train_rloss = os.path.join(args.directory, 'train_reconstruction_loss.txt')
-    train_acc = os.path.join(args.directory, 'train_accuracy.txt')
+    train_mloss = args.directory / 'train_margin_loss.txt'
+    train_rloss = args.directory / 'train_reconstruction_loss.txt'
+    train_acc = args.directory / 'train_accuracy.txt'
 
-    test_mloss = os.path.join(args.directory, 'test_margin_loss.txt')
-    test_rloss = os.path.join(args.directory, 'test_reconstruction_loss.txt')
-    test_acc = os.path.join(args.directory, 'test_accuracy.txt')
+    test_mloss = args.directory / 'test_margin_loss.txt'
+    test_rloss = args.directory / 'test_reconstruction_loss.txt'
+    test_acc = args.directory / 'test_accuracy.txt'
 
-    learning_rate = os.path.join(args.directory, 'learning_rate.txt')
-    output_tensor = os.path.join(args.directory, 'output_tensor.txt')
+    learning_rate = args.directory / 'learning_rate.txt'
+    output_tensor = args.directory / 'output_tensor.txt'
 
-    n_parameters = os.path.join(args.directory, 'n_parameters.txt')
+    n_parameters = args.directory / 'n_parameters.txt'
     with open(n_parameters, 'a+') as f:
         f.write('{}\n'.format(num_params + (11520 if args.dataset == 'mnist' else 20480)))
 
-    arguments_file = os.path.join(args.directory, 'arguments.txt')
+    arguments_file = args.directory / 'arguments.txt'
     with open(arguments_file, 'a+') as f:
         pprint.pprint(args.__dict__, stream=f)
 
-    description = os.path.join(args.directory, 'details.txt')
+    description = args.directory / 'details.txt'
     description = open(description, 'a+')
     description.write(args.description)
     description.close()
@@ -582,17 +582,17 @@ def main(arguments=None):
     test_acc.close()
     learning_rate.close()
     output_tensor.close()
-    with open(os.path.join(args.directory, 'best_accuracy.txt'), 'a+') as f:
+    with open(args.directory / 'best_accuracy.txt', 'a+') as f:
         f.write("%.10f,%d\n" % (best_acc, best_acc_epoch))
     print('\n\nBest Accuracy: ' + str(best_acc) + '%%\nReached at epoch: %d\n\n' % best_acc_epoch)
 
     global avg_training_time_per_epoch
     global avg_testing_time_per_epoch
 
-    with open(os.path.join(args.directory, 'average_training_time_per_epoch.txt'), 'a+') as f:
+    with open(args.directory / 'average_training_time_per_epoch.txt', 'a+') as f:
         f.write("%.10f\n" % avg_training_time_per_epoch)
     print('Average time per training epoch: %.10f\n\n' % avg_training_time_per_epoch)
-    with open(os.path.join(args.directory, 'average_testing_time_per_epoch.txt'), 'a+') as f:
+    with open(args.directory / 'average_testing_time_per_epoch.txt', 'a+') as f:
         f.write("%.10f\n" % avg_testing_time_per_epoch)
     print('Average time per testing epoch: %.10f\n\n' % avg_testing_time_per_epoch)
 
