@@ -248,7 +248,7 @@ def test(model, data_loader, num_train_batches, epoch, test_mloss, test_rloss, t
         best_acc = accuracy_percentage
         best_acc_epoch = epoch
         test_loader = data_loader
-        utils.dump(utils.make_partial_checkpoint_obj(locals()), directory / 'trained_model/FP32_model')
+        utils.dump(utils.make_full_checkpoint_obj(locals()), directory / 'trained_model/FP32_model')
 
 
 def main(arguments=None):
