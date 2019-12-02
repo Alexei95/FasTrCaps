@@ -258,7 +258,7 @@ def save_image(image, file_name):
         # Grayscale or RGB image
         image_tensor = image.data.cpu()  # get Tensor from Variable
 
-    vutils.save_image(image_tensor, file_name)
+    vutils.save_image(image_tensor, str(file_name))
 
 
 def accuracy(output, target, cuda_enabled=True):

@@ -207,9 +207,9 @@ def test(model, data_loader, num_train_batches, epoch, test_mloss, test_rloss, t
         assert recon_img.size() == torch.Size([batch_size, image_channel, image_width, image_height])
 
         # Save the image into file system
-        utils.save_image(recon_img, directory + '/recons_image_test_{}_{}.png'.format(epoch, global_step))
-        utils.save_image(data, directory +
-                         '/original_image_test_{}_{}.png'.format(epoch, global_step))
+        utils.save_image(recon_img, directory / ('recons_image_test_{}_{}.png'.format(epoch, global_step)))
+        utils.save_image(data, directory /
+                         ('original_image_test_{}_{}.png'.format(epoch, global_step)))
 
     end_time = timer()
 
