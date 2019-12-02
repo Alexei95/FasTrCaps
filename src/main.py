@@ -461,10 +461,10 @@ def main(arguments=None):
     if args.restart_training:
         p = pathlib.Path(args.directory) / + 'trained_model'
         if p.exists():
-            l = list(p.iterdir())
+            l = sorted(list(p.iterdir()))
             if l:
                 f = l[-1]
-                pckl = torch.load(str(f))
+                pckl = utils.load(str(f))
                 model.load_state_dict(pckl['model_state_dict'])
                 optimizer.load_state_dict(pckl['optimizer_state_dict'])
                 lr_wr.__dict__ = pckl['lr_wr']
@@ -567,9 +567,16 @@ def main(arguments=None):
             # Save model checkpoint
             utils.checkpoint({
                             'epoch': epoch + 1,
+                            'model': model,
+                            'optimizer': optimizer,
                             'model_state_dict': model.state_dict(),
                             'optimizer_state_dict': optimizer.state_dict(),
                             'lr_wr' : lr_wr.__dict__,
+                            'lr_wr_obj': lr_wr,
+                            'args': args,
+                            'loss_func': loss_func,
+                            'train_loader': train_loader,
+                            'test_loader': test_loader,
                             }, epoch, directory=args.directory)
     except KeyboardInterrupt:
         print("\n\n\nKeyboardInterrupt, Interrupting...")

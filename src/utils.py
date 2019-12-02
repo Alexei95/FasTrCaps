@@ -6,7 +6,11 @@ https://arxiv.org/abs/1710.09829
 
 Author: Cedric Chee
 """
+import argparse
 import math
+import os
+import os.path
+import pickle
 import pathlib
 
 import torch
@@ -15,7 +19,69 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torchvision import transforms, datasets
 import torchvision.utils as vutils
-import argparse
+
+try:
+    import compress_pickle
+except ImportError:
+    compress_pickle = None
+import numpy
+
+
+TIME_FORMAT = '%Y_%m_%d_%H_%M_%S_%z'
+RESULT_DIRECTORY = pathlib.Path(__file__).absolute().resolve().parent.parent / 'results'
+PICKLE_COMPRESSION = True
+DEFAULT_PICKLE_COMPRESSION = 'lzma'
+DEFAULT_PICKLE_EXTENSION = 'pkl'
+
+# wrapper to use compress pickle if installed
+def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, directory=RESULT_DIRECTORY):
+    filename = str(filename)
+    if not os.path.isabs(filename):
+        filename = os.path.join(directory, filename)
+
+    try:
+        os.makedirs(os.path.dirname(filename))
+    except OSError:
+        pass
+
+    if compress_pickle is not None and PICKLE_COMPRESSION:
+        if os.path.splitext(filename)[0] == filename:
+            filename = '.'.join([filename, default_compression])
+        compress_pickle.dump(obj, filename)
+    else:
+        if os.path.splitext(filename)[0] == filename:
+            filename = '.'.join([filename, DEFAULT_PICKLE_EXTENSION])
+        with open(filename, 'wb') as f:
+            pickle.dump(obj, f)
+
+    return filename
+
+
+def load(pickle_file=None, directory=RESULT_DIRECTORY, default_compression=DEFAULT_PICKLE_COMPRESSION, use_compression=PICKLE_COMPRESSION):
+    directory = str(directory)
+    if pickle_file is not None:
+        pickle_file = str(pickle_file)
+        if os.path.isabs(pickle_file):
+            filename = pickle_file
+        else:
+            filename = os.path.join(directory, pickle_file)
+    else:
+        files = os.listdir(directory)
+        filename = os.path.join(directory, sorted(files)[-1])
+
+    compressed = filename.endswith(default_compression)
+
+    if compressed and compress_pickle is not None and use_compression:
+        if os.path.splitext(filename)[0] == filename:
+            fname = '.'.join([filename, default_compression])
+        res = compress_pickle.load(filename, encoding='latin1')
+    else:
+        if os.path.splitext(filename)[0] == filename:
+            fname = '.'.join([filename, DEFAULT_PICKLE_EXTENSION])
+        with open(filename, 'rb') as f:
+            res = pickle.load(f, encoding='latin1')
+
+    return res
 
 
 def one_hot_encode(target, length):
@@ -31,9 +97,8 @@ def one_hot_encode(target, length):
 
 def checkpoint(state, epoch, directory):
     """Save checkpoint"""
-    model_out_path = directory + \
-        '/trained_model/model_epoch_{}.pth'.format(epoch)
-    torch.save(state, model_out_path)
+    model_out_path = pathlib.Path(directory) / 'trained_model' / 'model_epoch_{}.pth'.format(epoch)
+    dump(state, model_out_path)
     print('Checkpoint saved to {}'.format(model_out_path))
 
 
