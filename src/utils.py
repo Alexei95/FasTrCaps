@@ -7,6 +7,7 @@ https://arxiv.org/abs/1710.09829
 Author: Cedric Chee
 """
 import argparse
+import io
 import math
 import os
 import os.path
@@ -24,18 +25,24 @@ try:
     import compress_pickle
 except ImportError:
     compress_pickle = None
+try:
+    import dill
+except ImportError:
+    dill = None
 import numpy
 
 
 TIME_FORMAT = '%Y_%m_%d_%H_%M_%S_%z'
 RESULT_DIRECTORY = pathlib.Path(__file__).absolute().resolve().parent.parent / 'results'
 PICKLE_COMPRESSION = True
-DEFAULT_PICKLE_COMPRESSION = 'lzma'
 DEFAULT_PICKLE_EXTENSION = 'pkl'
-SAVE_FULL_OBJECT =
+SAVE_FULL_OBJECT = True
+COMPRESSIONS = ('lzma', 'zip', 'tar.gz', 'tar.bz2')
+DEFAULT_PICKLE_COMPRESSION = COMPRESSIONS[0]  # lzma
+DILL_DUMPED_NONE = b'\x80\x03N.'
 
 # wrapper to use compress pickle if installed
-def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, directory=RESULT_DIRECTORY, use_compression=PICKLE_COMPRESSION):
+def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, directory=RESULT_DIRECTORY, use_compression=PICKLE_COMPRESSION, save_full_object=SAVE_FULL_OBJECT):
     filename = str(filename)
     if not os.path.isabs(filename):
         filename = os.path.join(directory, filename)
@@ -45,20 +52,26 @@ def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, director
     except OSError:
         pass
 
+    if dill is not None and save_full_object:
+        string_buff = dill.dumps(obj)
+        obj_to_save = {'dill': True, 'obj': string_buff}
+    else:
+        obj_to_save = obj
+
     if compress_pickle is not None and use_compression:
         if os.path.splitext(filename)[0] == filename:
             filename = '.'.join([filename, default_compression])
-        compress_pickle.dump(obj, filename)
+        compress_pickle.dump(obj_to_save, filename)
     else:
         if os.path.splitext(filename)[0] == filename:
             filename = '.'.join([filename, use_compression])
         with open(filename, 'wb') as f:
-            pickle.dump(obj, f)
+            pickle.dump(obj_to_save, f)
 
     return filename
 
 
-def load(pickle_file=None, directory=RESULT_DIRECTORY, default_compression=DEFAULT_PICKLE_COMPRESSION, use_compression=PICKLE_COMPRESSION):
+def load(pickle_file=None, directory=RESULT_DIRECTORY, default_compression=DEFAULT_PICKLE_COMPRESSION, use_compression=PICKLE_COMPRESSION, save_full_object=SAVE_FULL_OBJECT, none=DILL_DUMPED_NONE):
     directory = str(directory)
     if pickle_file is not None:
         pickle_file = str(pickle_file)
@@ -70,9 +83,9 @@ def load(pickle_file=None, directory=RESULT_DIRECTORY, default_compression=DEFAU
         files = os.listdir(directory)
         filename = os.path.join(directory, sorted(files)[-1])
 
-    compressed = filename.endswith(default_compression)
+    compressed = filename.lower().endswith(COMPRESSIONS)
 
-    if compressed and compress_pickle is not None and use_compression:
+    if compress_pickle is not None and (compressed or use_compression):
         if os.path.splitext(filename)[0] == filename:
             fname = '.'.join([filename, default_compression])
         res = compress_pickle.load(filename, encoding='latin1')
@@ -82,7 +95,13 @@ def load(pickle_file=None, directory=RESULT_DIRECTORY, default_compression=DEFAU
         with open(filename, 'rb') as f:
             res = pickle.load(f, encoding='latin1')
 
-    return res
+    if dill is not None and isinstance(res, dict) and res.get('dill', None):
+        string_buff = res.get('obj', none)
+        obj = dill.loads(string_buff)
+    else:
+        obj = res
+
+    return obj
 
 
 def one_hot_encode(target, length):
