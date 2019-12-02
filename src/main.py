@@ -247,7 +247,8 @@ def test(model, data_loader, num_train_batches, epoch, test_mloss, test_rloss, t
     if accuracy_percentage > best_acc:
         best_acc = accuracy_percentage
         best_acc_epoch = epoch
-        torch.save(model.state_dict(), directory + '/trained_model/FP32_model.pt')
+        test_loader = data_loader
+        utils.dump(utils.make_checkpoint_obj(locals()), directory / 'trained_model/FP32_model')
 
 
 def main(arguments=None):
@@ -457,8 +458,9 @@ def main(arguments=None):
         cudnn.benchmark = True
         model = torch.nn.DataParallel(model)
 
-
+    args.file_flag = 'w'
     if args.restart_training:
+        args.file_flag = args.file_flag
         p = pathlib.Path(args.directory) / + 'trained_model'
         if p.exists():
             l = sorted(list(p.iterdir()))
@@ -503,26 +505,26 @@ def main(arguments=None):
     output_tensor = args.directory / 'output_tensor.txt'
 
     n_parameters = args.directory / 'n_parameters.txt'
-    with open(n_parameters, 'a+') as f:
+    with open(n_parameters, args.file_flag) as f:
         f.write('{}\n'.format(num_params + (11520 if args.dataset == 'mnist' else 20480)))
 
     arguments_file = args.directory / 'arguments.txt'
-    with open(arguments_file, 'a+') as f:
+    with open(arguments_file, args.file_flag) as f:
         pprint.pprint(args.__dict__, stream=f)
 
     description = args.directory / 'details.txt'
-    description = open(description, 'a+')
+    description = open(description, args.file_flag)
     description.write(args.description)
     description.close()
 
-    train_mloss = open(train_mloss, 'a+')
-    train_rloss = open(train_rloss, 'a+')
-    train_acc = open(train_acc, 'a+')
-    test_mloss = open(test_mloss, 'a+')
-    test_rloss = open(test_rloss, 'a+')
-    test_acc = open(test_acc, 'a+')
-    learning_rate = open(learning_rate, 'a+')
-    output_tensor = open(output_tensor, 'a+')
+    train_mloss = open(train_mloss, args.file_flag)
+    train_rloss = open(train_rloss, args.file_flag)
+    train_acc = open(train_acc, args.file_flag)
+    test_mloss = open(test_mloss, args.file_flag)
+    test_rloss = open(test_rloss, args.file_flag)
+    test_acc = open(test_acc, args.file_flag)
+    learning_rate = open(learning_rate, args.file_flag)
+    output_tensor = open(output_tensor, args.file_flag)
 
     # Train and test
     try:
@@ -565,19 +567,7 @@ def main(arguments=None):
             output_tensor.flush()
 
             # Save model checkpoint
-            utils.checkpoint({
-                            'epoch': epoch + 1,
-                            'model': model,
-                            'optimizer': optimizer,
-                            'model_state_dict': model.state_dict(),
-                            'optimizer_state_dict': optimizer.state_dict(),
-                            'lr_wr' : lr_wr.__dict__,
-                            'lr_wr_obj': lr_wr,
-                            'args': args,
-                            'loss_func': loss_func,
-                            'train_loader': train_loader,
-                            'test_loader': test_loader,
-                            }, epoch, directory=args.directory)
+            utils.checkpoint(utils.make_checkpoint_obj(locals()), epoch, directory=args.directory)
     except KeyboardInterrupt:
         print("\n\n\nKeyboardInterrupt, Interrupting...")
 
@@ -589,17 +579,17 @@ def main(arguments=None):
     test_acc.close()
     learning_rate.close()
     output_tensor.close()
-    with open(args.directory / 'best_accuracy.txt', 'a+') as f:
+    with open(args.directory / 'best_accuracy.txt', args.file_flag) as f:
         f.write("%.10f,%d\n" % (best_acc, best_acc_epoch))
     print('\n\nBest Accuracy: ' + str(best_acc) + '%%\nReached at epoch: %d\n\n' % best_acc_epoch)
 
     global avg_training_time_per_epoch
     global avg_testing_time_per_epoch
 
-    with open(args.directory / 'average_training_time_per_epoch.txt', 'a+') as f:
+    with open(args.directory / 'average_training_time_per_epoch.txt', args.file_flag) as f:
         f.write("%.10f\n" % avg_training_time_per_epoch)
     print('Average time per training epoch: %.10f\n\n' % avg_training_time_per_epoch)
-    with open(args.directory / 'average_testing_time_per_epoch.txt', 'a+') as f:
+    with open(args.directory / 'average_testing_time_per_epoch.txt', args.file_flag) as f:
         f.write("%.10f\n" % avg_testing_time_per_epoch)
     print('Average time per testing epoch: %.10f\n\n' % avg_testing_time_per_epoch)
 
