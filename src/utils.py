@@ -54,7 +54,7 @@ def dump(obj, filename, default_compression=DEFAULT_PICKLE_COMPRESSION, director
         pass
 
     if dill is not None and save_full_object:
-        string_buff = dill.dumps(obj)
+        string_buff = dill.dumps(obj, recurse=True)
         obj_to_save = {'dill': True, 'obj': string_buff}
     else:
         obj_to_save = obj
@@ -98,7 +98,7 @@ def load(pickle_file=None, directory=RESULT_DIRECTORY, default_compression=DEFAU
 
     if dill is not None and isinstance(res, dict) and res.get('dill', None):
         string_buff = res.get('obj', none)
-        obj = dill.loads(string_buff)
+        obj = dill.loads(string_buff, ignore=True)
     else:
         obj = res
 
