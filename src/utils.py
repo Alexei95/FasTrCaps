@@ -13,6 +13,7 @@ import os
 import os.path
 import pickle
 import pathlib
+import sys
 
 import torch
 import torch.nn.functional as F
@@ -31,6 +32,11 @@ try:
 except ImportError:
     dill = None
 import numpy
+
+
+PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.append(str(PROJECT_DIR))
 
 
 TIME_FORMAT = '%Y_%m_%d_%H_%M_%S_%z'

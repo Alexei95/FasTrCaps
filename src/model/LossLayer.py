@@ -1,8 +1,15 @@
+import pathlib
+import sys
+
 import torch
 import torch.nn.functional as F
-import torch.nn as nn 
+import torch.nn as nn
 
-from functions import reluPrime
+PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent.parent # main directory, the parent of src
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.append(str(PROJECT_DIR))
+
+from src.model.functions import reluPrime
 
 class LossLayer(nn.Module): 
     

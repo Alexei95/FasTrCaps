@@ -1,10 +1,16 @@
 import math
+import pathlib
+import sys
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from functions import squash, mask
+PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent.parent # main directory, the parent of src
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.append(str(PROJECT_DIR))
+
+from src.model.functions import squash, mask
 
 #def squash(input, dim=2):
 #    norm = torch.norm(input, dim=dim, keepdim=True)

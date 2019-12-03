@@ -4,6 +4,7 @@ from timeit import default_timer as timer
 import os
 import pathlib
 import pprint
+import sys
 
 import torch
 import torch.optim as optim
@@ -13,7 +14,13 @@ import torchvision.utils as vutils
 from tqdm import tqdm
 import torch.autograd.profiler
 
-import utils
+PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.append(str(PROJECT_DIR))
+
+import src.utils as utils
+
+
 global loss_func
 global avg_training_time_per_epoch
 global avg_testing_time_per_epoch
@@ -24,7 +31,6 @@ best_acc_epoch = 0
 avg_training_time_per_epoch = 0
 avg_testing_time_per_epoch = 0
 
-PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
 # print(PROJECT_DIR)
 def train(model, data_loader, optimizer, epoch, train_mloss, train_rloss, train_acc, learning_rate, lr_wr, output_tensor):
     """
@@ -380,14 +386,14 @@ def main(arguments=None):
     print(args)
 
     if args.old_model:
-        from model import Net
-        import functions as func
+        from src.model.model import Net
+        import src.model.functions as func
         ModelToUse = Net
         def loss_func(output, target, regularization_scale, reconstruction, data, device, batch_size):
             return func.loss(output, reconstruction, target, data, regularization_scale, device)
     else:
-        from layers import CapsNet
-        from layers import loss_func as loss_func_internal
+        from src.model.layers import CapsNet
+        from src.model.layers import loss_func as loss_func_internal
         ModelToUse = CapsNet
         def loss_func(output, target, regularization_scale, reconstruction, data, device, batch_size):
             return loss_func_internal(output, target, regularization_scale, reconstruction, data.view(batch_size, -1), device)

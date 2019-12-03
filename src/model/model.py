@@ -1,12 +1,18 @@
+import math
+import pathlib
+import sys
+
 import torch
 import torch.nn as nn
 
-from ConvLayer import ConvLayer
-from PrimaryCaps import PrimaryCaps
-from DigitCaps import DigitCaps
-from Decoder import Decoder
+PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent.parent # main directory, the parent of src
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.append(str(PROJECT_DIR))
 
-import math
+from src.model.ConvLayer import ConvLayer
+from src.model.PrimaryCaps import PrimaryCaps
+from src.model.DigitCaps import DigitCaps
+from src.model.Decoder import Decoder
 
 
 class Net(nn.Module):
