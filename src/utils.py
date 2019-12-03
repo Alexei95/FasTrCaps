@@ -27,6 +27,7 @@ except ImportError:
     compress_pickle = None
 try:
     import dill
+    import scipy
 except ImportError:
     dill = None
 import numpy
