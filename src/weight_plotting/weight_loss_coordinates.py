@@ -14,6 +14,9 @@ if str(PROJECT_DIR) not in sys.path:
 DEFAULT_METRIC = torch.nn.MSELoss(reduction='sum')
 DEFAULT_POSITIVE_MARGIN = 0.05
 DEFAULT_NEGATIVE_MARGIN = -0.05
+DEFAULT_RANDOM_DIRECTIONS = True
+DEFAULT_ORTHOGONAL_DIRECTIONS = False
+DEFAULT_NORMALIZE_DIRECTIONS = True
 
 def compute_weight_metric(weights, target=None, metric=DEFAULT_METRIC):
     if target is None:
@@ -22,11 +25,14 @@ def compute_weight_metric(weights, target=None, metric=DEFAULT_METRIC):
 
 def compute_model_metric(parameters, targets=None, metric=DEFAULT_METRIC):
     if targets is None:
-        targets = [None] * len(list(weights))
+        targets = [None] * len(list(parameters))
         final_target = None
     else:
         final_target = targets
     return compute_weight_metric(torch.tensor(list(compute_weight_metric(w, t, metric) for w, t in zip(weights, targets))), final_target, metric)
+
+def compute_directions(weights, directions, random=True, orthogonal=False, normalize=True):
+    pass
 
 def compute_landscape_x(parameters, pos_margin=DEFAULT_POS_MARGIN):
     pass
