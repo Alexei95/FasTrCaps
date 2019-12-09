@@ -14,12 +14,56 @@ from src.model.PrimaryCaps import PrimaryCaps
 from src.model.DigitCaps import DigitCaps
 from src.model.Decoder import Decoder
 
+INPUT_WIDTH = 28
+NUM_CONV_IN_CHANNELS = 1
+CONV_KERNEL = 9
+CONV_STRIDE = 1
+NUM_CONV_OUT_CHANNELS = 256
+NUM_PRIMARY_CHANNELS = 32
+PRIMARY_CAPS_DIM = 8
+PRIMARY_KERNEL = 9
+PRIMARY_STRIDE = 2
+DIGIT_CAPS_DIM = 16
+NUM_CLASSES = 10
+REGULARIZATION_SCALE = 0.0005
+ITER = 3
+DEC1_DIM = 512
+DEC2_DIM = 1024
+CUDA_ENABLED = True
+SMALL_DECODER = False
+DEVICE = 'cuda:0'
+CONV_SHARED_WEIGHTS = 0  # disabled
+PRIMARY_SHARED_WEIGHTS = 0  # disabled
+DIGIT_SHARED_WEIGHTS = 0  # disabled
+CONV_SHARED_BIAS = CONV_SHARED_WEIGHTS  # to have coherency as default
+SQUASH_APPROX = False
 
 class Net(nn.Module):
 
-    def __init__(self, input_wh, num_conv_in_channels, conv_kernel, conv_stride, num_conv_out_channels, num_primary_channels,
-                 primary_caps_dim, primary_kernel, primary_stride, digit_caps_dim, num_classes, regularization_scale, iter, dec1_dim, dec2_dim,
-                 cuda_enabled=True, small_decoder=True, device='cuda:0', conv_shared_weights=256, primary_shared_weights=256, digit_shared_weights=36, conv_shared_bias=256, squash_approx=False):
+    def __init__(self,
+                 input_wh=INPUT_WIDTH,
+                 num_conv_in_channels=NUM_CONV_IN_CHANNELS,
+                 conv_kernel=CONV_KERNEL,
+                 conv_stride=CONV_STRIDE,
+                 num_conv_out_channels=NUM_CONV_OUT_CHANNELS,
+                 num_primary_channels=NUM_PRIMARY_CHANNELS,
+                 primary_caps_dim=PRIMARY_CAPS_DIM,
+                 primary_kernel=PRIMARY_KERNEL,
+                 primary_stride=PRIMARY_STRIDE,
+                 digit_caps_dim=DIGIT_CAPS_DIM,
+                 num_classes=NUM_CLASSES,
+                 regularization_scale=REGULARIZATION_SCALE,
+                 iter=ITER,
+                 dec1_dim=DEC1_DIM,
+                 dec2_dim=DEC2_DIM,
+                 cuda_enabled=CUDA_ENABLED,
+                 small_decoder=SMALL_DECODER,
+                 device=DEVICE,
+                 conv_shared_weights=CONV_SHARED_WEIGHTS,
+                 primary_shared_weights=PRIMARY_SHARED_WEIGHTS,
+                 digit_shared_weights=DIGIT_SHARED_WEIGHTS,
+                 conv_shared_bias=CONV_SHARED_BIAS,
+                 squash_approx=SQUASH_APPROX):
 
         super(Net, self).__init__()
 
