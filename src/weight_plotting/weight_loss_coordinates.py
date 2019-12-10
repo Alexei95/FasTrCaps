@@ -1,5 +1,6 @@
 import argparse
 import collections
+import itertools
 import timeit
 import os
 import pathlib
@@ -46,10 +47,10 @@ def compute_landscape_x(n_dimensions, margin=DEFAULT_MARGIN):
 def compute_loss(test_loader, model, loss, directions, coefficients):
     state_dict_backup = model.state_dict()
     parameters = model.state_dict()
-    deltas = collections.OrderedDict((k, sum(coefficients[i] * d[i] for i in range(len(d)), 0)) for k, d in directions.items())
-    updated_parameters = collections.OrderedDict((k, w + delas[k]) for k, w in parameters.items())
+    deltas = collections.OrderedDict((k, sum((coefficients[i] * d[i] for i in range(len(d))), 0)) for k, d in directions.items())
+    updated_parameters = collections.OrderedDict((k, w + deltas[k]) for k, w in parameters.items())
     model.load_state_dict(updated_parameters)
-    avg_loss = sum(loss(model(el)) for el in test_loader, 0) / len(test_loader)
+    avg_loss = sum((loss(model(el)) for el in test_loader), 0) / len(test_loader)
     return avg_loss
 
 def compute_landscape_y(test_loader, model, loss, directions, meshes):
