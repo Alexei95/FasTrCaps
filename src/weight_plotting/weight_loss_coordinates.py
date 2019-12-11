@@ -35,6 +35,8 @@ def compute_model_metric(parameters, targets=None, metric=DEFAULT_METRIC):
         final_target = targets
     return compute_weight_metric(torch.tensor(list(compute_weight_metric(w, t, metric) for w, t in zip(weights, targets))), final_target, metric)
 
+# can be improved by adding options for normalization, filter-wide, layer-wide 
+# and randomness
 def generate_directions(weights, n_dimensions):
     directions = collections.OrderedDict((k, (torch.randn_like(w) for x in range(n_dimensions))) for k, w in weights.items())
     return directions
@@ -61,9 +63,19 @@ def compute_landscape_y(test_loader, model, loss, directions, meshes):
     losses = numpy.zeros(dimensions)
     indexes = itertools.product(*[range(dim) for dim in dimensions])
     for idx in indexes:
-        l = compute_loss(test_loader, model, loss, directions, idx)
+        coeffs = tuple(meshes[i][idx] for i in range(n_dimensions))
+        l = compute_loss(test_loader, model, loss, directions, coeffs)
         losses.__setitem__(idx, l)
     return losses
+
+# to handle everything, create a class per each model which does the loading
+# create base class which raises NotImplementedError or safe_exec to return 
+# baseline values
+# CapsNetLoader.load_model(pickle_file) --> for internal initialization
+# CapsNetLoader.run_test_epoch() --> return the average loss over the whole epoch
+# CapsNetLoader.weights/parameters --> return the parameters from the model
+# CapsNetLoader.update_parameters(parameters) --> loads new parameters
+# Alternative: CapsNetLoader.run_test_epoch(parameters) --> uses new parameters for a test epoch
 
 def main():
     pass
