@@ -107,8 +107,17 @@ class MockupLoss(object):
 
 class BaseLoader(object):
     __safe_exec = None
-    def __init__(self, model=MockupModel(), loss=MockupLoss(), safe_exec=False, *args, **kwargs):
+    __model = MockupModel()
+    __loss = MockupLoss()
+    def __init__(self, safe_exec=False, *args, **kwargs):
         self.__safe_exec = safe_exec
+
+    @classmethod
+    def load_from_pickle(cls, *args, **kwargs):
+        if not cls.__safe_exec:
+            raise NotImplementedError
+        else:
+            return None
 
 def main():
     pass
