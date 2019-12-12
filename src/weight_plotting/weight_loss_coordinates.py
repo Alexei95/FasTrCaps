@@ -77,47 +77,9 @@ def compute_landscape_y(test_loader, model, loss, directions, meshes):
 # CapsNetLoader.update_parameters(parameters) --> loads new parameters
 # Alternative: CapsNetLoader.run_test_epoch(parameters) --> uses new parameters for a test epoch
 
+class CapsNetLoader(object):
+    pass
 
-# this class is needed to model a basic nn model to instantiate
-# it provides a reference for the needed methods
-class MockupModel(object):
-    __safe_exec = None
-    def __init__(self, safe_exec=False, *args, **kwargs):
-        self.__safe_exec = safe_exec
-
-    def __call__(self, *args, **kwargs):
-        if not self.__safe_exec:
-            raise NotImplementedError
-        else:
-            return None
-
-# this class is needed to model a basic loss function to instantiate
-# it provides a reference for the needed methods
-class MockupLoss(object):
-    __safe_exec = None
-    def __init__(self, safe_exec=False, *args, **kwargs):
-        self.__safe_exec = safe_exec
-
-    def __call__(self, *args, **kwargs):
-        if not self.__safe_exec:
-            raise NotImplementedError
-        else:
-            return None
-
-
-class BaseLoader(object):
-    __safe_exec = None
-    __model = MockupModel()
-    __loss = MockupLoss()
-    def __init__(self, safe_exec=False, *args, **kwargs):
-        self.__safe_exec = safe_exec
-
-    @classmethod
-    def load_from_pickle(cls, *args, **kwargs):
-        if not cls.__safe_exec:
-            raise NotImplementedError
-        else:
-            return None
 
 def main():
     pass
