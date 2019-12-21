@@ -88,7 +88,13 @@ class CapsNetLoader(object):
     def run_test_epoch():
         pass
 
-
+# the flow is:
+# - generate directions from layer parameters
+# - for each point to plot:
+# -- compute the amount to move (they will be the coordinates)
+# -- compute new parameters as old + direction * move (per layer or depending on config)
+# -- compute loss by running full test epoch with new parameters
+# - plot all the points
 
 
 def main():
