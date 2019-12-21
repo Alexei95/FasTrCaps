@@ -14,6 +14,8 @@ PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, 
 if str(PROJECT_DIR) not in sys.path:
     sys.path.append(str(PROJECT_DIR))
 
+import src.utils as utils
+
 DEFAULT_METRIC = torch.nn.MSELoss(reduction='sum')
 DEFAULT_MARGIN = 0.05
 DEFAULT_NEGATIVE_MARGIN = -0.05
@@ -78,7 +80,15 @@ def compute_landscape_y(test_loader, model, loss, directions, meshes):
 # Alternative: CapsNetLoader.run_test_epoch(parameters) --> uses new parameters for a test epoch
 
 class CapsNetLoader(object):
-    pass
+    __model = None
+
+    def load_model(pickle_file):
+        pass
+
+    def run_test_epoch():
+        pass
+
+
 
 
 def main():
