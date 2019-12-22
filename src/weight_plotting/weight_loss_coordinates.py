@@ -81,12 +81,25 @@ def compute_landscape_y(test_loader, model, loss, directions, meshes):
 
 class CapsNetLoader(object):
     __model = None
+    __test_loader = None
+    __loss_func = None
+    __backup_parameters = None
 
-    def load_model(pickle_file):
-        pass
+    def load_model(self, pickle_file):
+        obj = utils.load(pickle_file)
+        self.__model = obj['model']
+        self.__test_loader = obj['test_loader']
+        self.__loss_func = obj['loss_func']
 
-    def run_test_epoch():
-        pass
+    def save_backup_parameters():
+        self.__backup_parameters = self.__model.parameters()
+
+    def load_backup_parameters():
+        self.__model.load_state_dict(self.__backup_parameters)
+
+    @property
+    def weights(self):
+        return list(self.__model.parameters())
 
 # the flow is:
 # - generate directions from layer parameters
