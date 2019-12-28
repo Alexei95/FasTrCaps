@@ -1,5 +1,6 @@
 import argparse
 import collections
+import copy
 import itertools
 import timeit
 import os
@@ -40,19 +41,6 @@ def compute_model_metric(parameters, targets=None, metric=DEFAULT_METRIC):
     return compute_weight_metric(torch.tensor(list(compute_weight_metric(w, t, metric) for w, t in zip(weights, targets))), final_target, metric)
 
 
-# can be improved by adding options for normalization, filter-wide, layer-wide
-# and randomness
-def generate_directions(weights, n_dimensions):
-    directions = collections.OrderedDict((k, (torch.randn_like(w) for x in range(n_dimensions))) for k, w in weights.items())
-    return directions
-
-
-def compute_landscape_x(n_dimensions, margin=DEFAULT_MARGIN):
-    linspace = numpy.linspace(-margin,  margin, num=NUM_POINTS)
-    meshes = numpy.meshgrid(*[linspace] * n_dimensions, indexing='ij')
-    return meshes
-
-
 def compute_loss(test_loader, model, loss, directions, coefficients):
     state_dict_backup = model.state_dict()
     parameters = model.state_dict()
@@ -75,6 +63,86 @@ def compute_landscape_y(test_loader, model, loss, directions, meshes):
         l = compute_loss(test_loader, model, loss, directions, coeffs)
         losses.__setitem__(idx, l)
     return losses
+
+# class to handle landscape plotting
+# LandscapePlotter.add_loader(model_loader) --> uses the model loader in subsequent operations
+# LandscapePlotter.generate_directions(weights, n_dimensions) --> generates directions depending on number of dimensions and weights (more configs to be added)
+# LandscapePlotter.generate_landscape() --> generates meshes for landscape computations
+# LandscapePlotter.compute_loss() --> uses previously computed directions and meshes to compute loss with model
+
+class LandscapePlotter(object):
+    __model_loader = None
+    __n_dimensions = None
+    __directions = None
+    __margin = None
+    __num_points = None
+    __meshes = None
+
+    def __init__(self, n_dimensions, margin=DEFAULT_MARGIN, num_points=NUM_POINTS):
+        super().__init__(self)
+
+        self.__n_dimensions = n_dimensions
+        self.__margin = margin
+        self.__num_points = num_points
+
+    @property
+    def mesh_points(self):
+        return self.__num_points
+
+    @mesh_points.setter
+    def mesh_points(self, value=None):
+        if value is not None:
+            self.__num_points = value
+
+    @property
+    def dimensions(self):
+        return self.__n_dimensions
+
+    @dimensions.setter
+    def dimensions(self, value=None):
+        if value is not None:
+            self.__n_dimensions = value
+
+    @property
+    def margin(self):
+        return self.__margin
+
+    @margin.setter
+    def margin(self, value=None):
+        if value is not None:
+            self.__margin = value
+
+    @property
+    def directions(self):
+        return copy.deepcopy(self.__directions)
+
+    @property
+    def meshes(self):
+        return self.__meshes
+
+    def add_loader(self, model_loader):
+        self.__model_loader = model_loader
+
+    # mesh generation
+    def generate_meshes(self):
+        linspace = numpy.linspace(-self.__margin,  self.__margin, num=NUM_POINTS)
+        meshes = numpy.meshgrid(*[linspace] * n_dimensions, indexing='ij')
+        self.__meshes = meshes
+
+    # can be improved by adding options for normalization, filter-wide, layer-wide
+    # and randomness
+    def generate_directions(self):
+        weights = self.__model_loader.weights
+        directions = collections.OrderedDict((k, (torch.randn_like(w) for x in range(self.__n_dimensions))) for k, w in weights.items())
+        self.__directions = directions
+
+    @staticmethod
+    def compute_shifted_weights(weights, directions, coeffs):
+        pass
+
+    # computes the loss landscape by calling the model with the updated weights
+    def compute_loss(self):
+        pass
 
 # to handle everything, create a class per each model which does the loading
 # create base class which raises NotImplementedError or safe_exec to return
