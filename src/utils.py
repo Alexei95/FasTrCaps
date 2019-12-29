@@ -154,6 +154,8 @@ def make_partial_checkpoint_obj(dict_):
             'lr_wr_obj': lr_wr,
             'args': dict_.get('args', None),
             'loss_func': dict_.get('loss_func', None),
+            'train_loader': dict_.get('train_loader', None),
+            'test_loader': dict_.get('test_loader', None),
             'one_hot_encode': dict_['utils'].one_hot_encode if 'utils' in dict_ else None,
             }
 
