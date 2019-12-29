@@ -26,50 +26,12 @@ DEFAULT_NORMALIZE_DIRECTIONS = True
 NUM_POINTS = 100
 
 
-def compute_weight_metric(weights, target=None, metric=DEFAULT_METRIC):
-    if target is None:
-        target = torch.zeros(weights.size())
-    return metric(weights, target)
-
-
-def compute_model_metric(parameters, targets=None, metric=DEFAULT_METRIC):
-    if targets is None:
-        targets = [None] * len(list(parameters))
-        final_target = None
-    else:
-        final_target = targets
-    return compute_weight_metric(torch.tensor(list(compute_weight_metric(w, t, metric) for w, t in zip(weights, targets))), final_target, metric)
-
-
-def compute_loss(test_loader, model, loss, directions, coefficients):
-    state_dict_backup = model.state_dict()
-    parameters = model.state_dict()
-    deltas = collections.OrderedDict((k, sum((coefficients[i] * d[i] for i in range(len(d))), 0)) for k, d in directions.items())
-    updated_parameters = collections.OrderedDict((k, w + deltas[k]) for k, w in parameters.items())
-    model.load_state_dict(updated_parameters)
-    avg_loss = sum((loss(model(el)) for el in test_loader), 0) / len(test_loader)
-    return avg_loss
-
-
-def compute_landscape_y(test_loader, model, loss, directions, meshes):
-    # itertools.product to iterate over indexes
-    # compute loss and save them
-    n_dimensions = len(meshes)
-    dimensions = meshes[0].shape if n_dimensions > 0 else tuple()
-    losses = numpy.zeros(dimensions)
-    indexes = itertools.product(*[range(dim) for dim in dimensions])
-    for idx in indexes:
-        coeffs = tuple(meshes[i][idx] for i in range(n_dimensions))
-        l = compute_loss(test_loader, model, loss, directions, coeffs)
-        losses.__setitem__(idx, l)
-    return losses
-
 # class to handle landscape plotting
 # LandscapePlotter.add_loader(model_loader) --> uses the model loader in subsequent operations
 # LandscapePlotter.generate_directions(weights, n_dimensions) --> generates directions depending on number of dimensions and weights (more configs to be added)
 # LandscapePlotter.generate_landscape() --> generates meshes for landscape computations
 # LandscapePlotter.compute_loss() --> uses previously computed directions and meshes to compute loss with model
-
+# to plot unpack LandscapePlotter.ranges as coordinates and use LandscapePlotter.losses as evaluation results
 class LandscapePlotter(object):
     __model_loader = None
     __n_dimensions = None
@@ -77,6 +39,8 @@ class LandscapePlotter(object):
     __margin = None
     __num_points = None
     __meshes = None
+    __losses = None
+    __ranges = None
 
     def __init__(self, n_dimensions, margin=DEFAULT_MARGIN, num_points=NUM_POINTS):
         super().__init__(self)
@@ -120,29 +84,50 @@ class LandscapePlotter(object):
     def meshes(self):
         return self.__meshes
 
+    @property
+    def losses(self):
+        return self.__losses
+
+    @property
+    def ranges(self):
+        return self.__ranges
+
     def add_loader(self, model_loader):
         self.__model_loader = model_loader
 
     # mesh generation
     def generate_meshes(self):
         linspace = numpy.linspace(-self.__margin,  self.__margin, num=NUM_POINTS)
-        meshes = numpy.meshgrid(*[linspace] * n_dimensions, indexing='ij')
+        self.__ranges = [linspace] * n_dimensions
+        meshes = numpy.meshgrid(*self.__ranges, indexing='ij')
         self.__meshes = meshes
 
     # can be improved by adding options for normalization, filter-wide, layer-wide
     # and randomness
     def generate_directions(self):
-        weights = self.__model_loader.weights
+        weights = self.__model_loader.named_weights
         directions = collections.OrderedDict((k, (torch.randn_like(w) for x in range(self.__n_dimensions))) for k, w in weights.items())
         self.__directions = directions
 
     @staticmethod
     def compute_shifted_weights(weights, directions, coeffs):
-        pass
+        deltas = collections.OrderedDict((k, sum((coeffs[i] * d[i] for i in range(len(d))), 0)) for k, d in directions.items())
+        updated_weights = collections.OrderedDict((k, w + deltas[k]) for k, w in weights.items())
+        return updated_weights
 
     # computes the loss landscape by calling the model with the updated weights
     def compute_loss(self):
-        pass
+        # itertools.product to iterate over indexes
+        # compute loss and save them
+        dimensions = self.__meshes[0].shape if self.__n_dimensions > 0 else tuple()
+        losses = numpy.zeros(dimensions)
+        indexes = itertools.product(*[range(dim) for dim in dimensions])
+        for idx in indexes:
+            coeffs = tuple(self.__meshes[i][idx] for i in range(self.__n_dimensions))
+            updated_weights = self.compute_shifted_weights(self.__model_loader.named_weights, self.__directions, coeffs)
+            l = self.__model_loader.run_test_epoch(parameters=updated_weights)
+            losses.__setitem__(idx, l)
+        self.__losses = losses
 
 # to handle everything, create a class per each model which does the loading
 # create base class which raises NotImplementedError or safe_exec to return
@@ -196,8 +181,16 @@ class CapsNetLoader(object):
     def weights(self):
         return list(self.__model.parameters())
 
-    def update_parameters(self, parameters):
-        self.__model.load_state_dict(parameters)
+    @property
+    def named_weights(self):
+        return list(self.__model.named_parameters())
+
+    @property
+    def state_dict(self):
+        return self.__model.state_dict()
+
+    def update_parameters(self, parameters, strict=False):
+        self.__model.load_state_dict(parameters, strict=strict)
 
     @staticmethod
     def run_capsnet_test_batch(model, loss_func, one_hot_encode, num_classes, data, target, device, regularization_scale, use_reconstruction_loss):
