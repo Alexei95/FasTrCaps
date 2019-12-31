@@ -11,19 +11,37 @@ import sys
 import numpy
 import torch
 
-PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
+import matplotlib.pyplot as plt
+import matplotlib
+from mpl_toolkits.mplot3d import Axes3D
+
+REPRODUCIBILITY = True
+
+PROJECT_DIR = pathlib.Path(__file__).absolute().resolve().parent.parent.parent # main directory, the parent of src
 if str(PROJECT_DIR) not in sys.path:
     sys.path.append(str(PROJECT_DIR))
 
 import src.utils as utils
 
 DEFAULT_METRIC = torch.nn.MSELoss(reduction='sum')
-DEFAULT_MARGIN = 0.05
-DEFAULT_NEGATIVE_MARGIN = -0.05
+DEFAULT_MARGIN = 0.1
+DEFAULT_NEGATIVE_MARGIN = -0.1
 DEFAULT_RANDOM_DIRECTIONS = True
 DEFAULT_ORTHOGONAL_DIRECTIONS = False
-DEFAULT_NORMALIZE_DIRECTIONS = True
-NUM_POINTS = 100
+DEFAULT_NORMALIZED_DIRECTIONS = True
+NUM_POINTS = 5
+N_DIMENSIONS = 2
+
+# CUDA must be the same as during training
+USE_CUDA = True
+
+PICKLE_FILE = PROJECT_DIR / 'results' / 'trained_model' / 'model_epoch_1.lzma'
+
+if REPRODUCIBILITY:
+    torch.manual_seed(0)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    numpy.random.seed(0)
 
 
 # class to handle landscape plotting
@@ -43,11 +61,29 @@ class LandscapePlotter(object):
     __ranges = None
 
     def __init__(self, n_dimensions, margin=DEFAULT_MARGIN, num_points=NUM_POINTS):
-        super().__init__(self)
+        super().__init__()
 
         self.__n_dimensions = n_dimensions
         self.__margin = margin
         self.__num_points = num_points
+
+    @property
+    def dict(self):
+        return collections.OrderedDict((('n_dimensions', self.__n_dimensions),
+                                        ('directions', self.__directions),
+                                        ('margin', self.__margin),
+                                        ('num_points', self.__num_points),
+                                        ('meshes', self.__meshes),
+                                        ('losses', self.__losses),
+                                        ('ranges', self.__ranges)))
+
+    # not fully working
+    @classmethod
+    def load_dict(cls, dict_):
+        instance = cls(n_dimensions=dict_['n_dimensions'],
+                       margin=dict_.get('margin', DEFAULT_MARGIN),
+                       num_points=dict_.get('num_points', NUM_POINTS))
+        return instance
 
     @property
     def mesh_points(self):
@@ -78,7 +114,7 @@ class LandscapePlotter(object):
 
     @property
     def directions(self):
-        return copy.deepcopy(self.__directions)
+        return self.__directions
 
     @property
     def meshes(self):
@@ -98,15 +134,16 @@ class LandscapePlotter(object):
     # mesh generation
     def generate_meshes(self):
         linspace = numpy.linspace(-self.__margin,  self.__margin, num=NUM_POINTS)
-        self.__ranges = [linspace] * n_dimensions
+        self.__ranges = [linspace] * self.__n_dimensions
         meshes = numpy.meshgrid(*self.__ranges, indexing='ij')
         self.__meshes = meshes
 
     # can be improved by adding options for normalization, filter-wide, layer-wide
     # and randomness
-    def generate_directions(self):
+    def generate_directions(self, normalize=DEFAULT_NORMALIZED_DIRECTIONS,
+                                  orthogonalize=DEFAULT_ORTHOGONAL_DIRECTIONS):
         weights = self.__model_loader.named_weights
-        directions = collections.OrderedDict((k, (torch.randn_like(w) for x in range(self.__n_dimensions))) for k, w in weights.items())
+        directions = collections.OrderedDict((k, tuple(torch.randn_like(w) for x in range(self.__n_dimensions))) for k, w in weights.items())
         self.__directions = directions
 
     @staticmethod
@@ -126,6 +163,8 @@ class LandscapePlotter(object):
             coeffs = tuple(self.__meshes[i][idx] for i in range(self.__n_dimensions))
             updated_weights = self.compute_shifted_weights(self.__model_loader.named_weights, self.__directions, coeffs)
             l = self.__model_loader.run_test_epoch(parameters=updated_weights)
+            if callable(getattr(l, 'get', None)):
+                l = l.get('loss', float('+inf'))
             losses.__setitem__(idx, l)
         self.__losses = losses
 
@@ -165,25 +204,33 @@ class CapsNetLoader(object):
             self.__regularization_scale = args.regularization_scale
             self.__use_reconstruction_loss = args.use_reconstruction_loss
             self.__num_classes = args.num_classes
+            device = args.device
         else:
             self.__regularization_scale = DEFAULT_REGULARIZATION_SCALE
             self.__use_reconstruction_loss = DEFAULT_USE_RECONSTRUCTION_LOSS
             self.__num_classes = DEFAULT_NUM_CLASSES
+            device = 'cuda' if USE_CUDA else 'cpu'
+
+        if not torch.cuda.is_available() or not USE_CUDA:
+            self.__device = 'cpu'
+        else:
+            self.__device = device
+
         self.__one_hot_encode = obj['one_hot_encode']
 
     def save_backup_parameters(self):
-        self.__backup_parameters = self.__model.parameters()
+        self.__backup_parameters = self.named_weights
 
     def load_backup_parameters(self):
         self.__model.load_state_dict(self.__backup_parameters)
 
     @property
     def weights(self):
-        return list(self.__model.parameters())
+        return tuple(self.__model.parameters())
 
     @property
     def named_weights(self):
-        return list(self.__model.named_parameters())
+        return collections.OrderedDict(self.__model.named_parameters())
 
     @property
     def state_dict(self):
@@ -203,9 +250,10 @@ class CapsNetLoader(object):
             target = target_one_hot
 
             if device:
+                model = model.to(device)
                 data = data.to(device)
                 target = target.to(device)
-                target_indices.to(device)
+                target_indices = target_indices.to(device)
 
             # Output predictions
             output, reconstruction = model(data, target_indices, False) # output from DigitCaps (out_digit_caps)
@@ -222,7 +270,7 @@ class CapsNetLoader(object):
             v_magnitude = torch.sqrt((output**2).sum(dim=2, keepdim=True))
             # pred shape: [128, 1, 1, 1]
             pred = v_magnitude.data.max(1, keepdim=True)[1].cpu()
-            correct = pred.eq(target_indices.view_as(pred)).sum()
+            correct = pred.eq(target_indices.view_as(pred).cpu()).sum()
 
             return {'loss': loss,
                     'margin_loss': margin_loss,
@@ -244,8 +292,11 @@ class CapsNetLoader(object):
         if parameters is not None:
             self.load_backup_parameters()
 
-    def run_test_batch(self, parameters=None):
+    def run_test_batch(self, data=None, target=None, parameters=None):
         self._pre_run_hook(parameters=parameters)
+
+        if data is None and target is None:
+            data, target = next(iter(self.__test_loader))
 
         res = self.run_capsnet_test_batch(self.__model, self.__loss_func,
                                               self.__one_hot_encode,
@@ -254,7 +305,7 @@ class CapsNetLoader(object):
                                               self.__regularization_scale,
                                               self.__use_reconstruction_loss)
 
-        self._post_run_hook(paramters=parameters)
+        self._post_run_hook(parameters=parameters)
 
         # to check whether the result has a get method
         # it is actually not needed since this method is internal, but still
@@ -280,7 +331,7 @@ class CapsNetLoader(object):
         self._pre_run_hook(parameters=parameters)
 
         for data, target in self.__test_loader:
-            res = self.run_test_batch(parameters=None)
+            res = self.run_test_batch(data=data, target=target, parameters=None)
             # results are averaged across the batch
             loss += res.get('loss', float('+inf'))
             margin_loss += res.get('margin_loss', float('+inf'))
@@ -313,7 +364,28 @@ class CapsNetLoader(object):
 
 
 def main():
-    pass
+    model_loader = CapsNetLoader()
+    model_loader.load_model(PICKLE_FILE)
+    loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
+    loss_plotter.add_loader(model_loader)
+    loss_plotter.generate_directions()
+    loss_plotter.generate_meshes()
+    loss_plotter.compute_loss()
+
+    utils.dump(loss_plotter.dict, filename=PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma')
+
+    fig = plt.figure(figsize=(15, 7), dpi=100)
+    print(loss_plotter.ranges)
+    print(loss_plotter.losses)
+    if N_DIMENSIONS == 1:
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(*loss_plotter.ranges, loss_plotter.losses)
+    elif N_DIMENSIONS == 2:
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+        ax.plot_surface(*loss_plotter.meshes, numpy.transpose(loss_plotter.losses))
+    plt.show()
+
+
 
 if __name__ == '__main__':
     main()
