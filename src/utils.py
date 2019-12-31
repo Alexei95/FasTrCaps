@@ -34,16 +34,16 @@ except ImportError:
 import numpy
 
 
-PROJECT_DIR = pathlib.Path(__file__).absolute().parent.parent # main directory, the parent of src
+PROJECT_DIR = pathlib.Path(__file__).absolute().resolve().parent.parent # main directory, the parent of src
 if str(PROJECT_DIR) not in sys.path:
     sys.path.append(str(PROJECT_DIR))
 
 
 TIME_FORMAT = '%Y_%m_%d_%H_%M_%S_%z'
-RESULT_DIRECTORY = pathlib.Path(__file__).absolute().resolve().parent.parent / 'results'
+RESULT_DIRECTORY = PROJECT_DIR / 'results'
 PICKLE_COMPRESSION = True
 DEFAULT_PICKLE_EXTENSION = 'pkl'
-SAVE_FULL_OBJECT = False
+SAVE_FULL_OBJECT = True
 COMPRESSIONS = ('lzma', 'zip', 'tar.gz', 'tar.bz2')
 DEFAULT_PICKLE_COMPRESSION = COMPRESSIONS[0]  # lzma
 DILL_DUMPED_NONE = b'\x80\x03N.'
@@ -121,7 +121,7 @@ def one_hot_encode(target, length):
 
     return one_hot_vec
 
-def make_full_checkpoint_obj(dict_):
+def make_full_checkpoint_obj(dict_=locals(), dict_globals=globals()):
     model = dict_.get('model', None)
     optimizer = dict_.get('optimizer', None)
     lr_wr = dict_.get('lr_wr', None)
@@ -134,13 +134,13 @@ def make_full_checkpoint_obj(dict_):
             'lr_wr' : lr_wr.__dict__ if lr_wr is not None else None,
             'lr_wr_obj': lr_wr,
             'args': dict_.get('args', None),
-            'loss_func': dict_.get('loss_func', None),
+            'loss_func': dict_globals.get('loss_func', None),
             'train_loader': dict_.get('train_loader', None),
             'test_loader': dict_.get('test_loader', None),
-            'one_hot_encode': dict_['utils'].one_hot_encode if 'utils' in dict_ else None,
+            'one_hot_encode': dict_globals['utils'].one_hot_encode if 'utils' in dict_globals else None,
             }
 
-def make_partial_checkpoint_obj(dict_):
+def make_partial_checkpoint_obj(dict_=locals(), dict_globals=globals()):
     model = dict_.get('model', None)
     optimizer = dict_.get('optimizer', None)
     lr_wr = dict_.get('lr_wr', None)
@@ -153,13 +153,13 @@ def make_partial_checkpoint_obj(dict_):
             'lr_wr' : lr_wr.__dict__ if lr_wr is not None else None,
             'lr_wr_obj': lr_wr,
             'args': dict_.get('args', None),
-            'loss_func': dict_.get('loss_func', None),
+            'loss_func': dict_globals.get('loss_func', None),
             'train_loader': dict_.get('train_loader', None),
             'test_loader': dict_.get('test_loader', None),
-            'one_hot_encode': dict_['utils'].one_hot_encode if 'utils' in dict_ else None,
+            'one_hot_encode': dict_globals['utils'].one_hot_encode if 'utils' in dict_globals else None,
             }
 
-def make_dataset_obj(dict_):
+def make_dataset_obj(dict_=locals(), dict_globals=globals()):
     return {
             'args': dict_.get('args', None),
             'train_loader': dict_.get('train_loader', None),
