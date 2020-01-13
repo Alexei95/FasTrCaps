@@ -38,8 +38,10 @@ DEFAULT_RANDOM_DIRECTIONS = True
 DEFAULT_ORTHOGONAL_DIRECTIONS = True
 DEFAULT_NORMALIZED_DIRECTIONS = True
 DEFAULT_USE_STATE_DICT = True
-NUM_POINTS = 20 
+NUM_POINTS = 2
 N_DIMENSIONS = 2
+
+DEFAULT_SAVE_LOSSES = False
 
 # CUDA must be the same as during training
 USE_CUDA = True
@@ -398,7 +400,7 @@ class CapsNetLoader(object):
 # - plot all the points
 
 
-def main():
+def main(save_losses=DEFAULT_SAVE_LOSSES):
     model_loader = CapsNetLoader()
     model_loader.load_model(PICKLE_FILE)
     loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
@@ -407,7 +409,8 @@ def main():
     loss_plotter.generate_meshes()
     loss_plotter.compute_loss()
 
-    utils.dump(loss_plotter.dict, filename=PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma')
+    if save_losses:
+        utils.dump(loss_plotter.dict, filename=PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma')
 
     fig = plt.figure(figsize=(15, 7), dpi=100)
     print(loss_plotter.ranges)
@@ -418,8 +421,8 @@ def main():
     elif N_DIMENSIONS == 2:
         ax = fig.add_subplot(1, 1, 1, projection='3d')
         ax.plot_surface(*loss_plotter.meshes, numpy.transpose(loss_plotter.losses))
-    # plt.show()
-    plt.savefig(str(PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'loss_{}.pdf').format(NUM_POINTS), bbox_inches="tight", pad_inches=0.2)
+    plt.show()
+    # plt.savefig(str(PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'loss_{}.pdf').format(NUM_POINTS), bbox_inches="tight", pad_inches=0.2)
 
 
 if __name__ == '__main__':
