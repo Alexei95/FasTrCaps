@@ -23,19 +23,28 @@ if str(PROJECT_DIR) not in sys.path:
 
 import src.utils as utils
 
+
+def DEFAULT_UNIFORM_INIT(tensor):
+    new_t = torch.empty_like(tensor)
+    new_t.uniform_(-1, 1)
+    return new_t
+
+
+DEFAULT_INIT_FUNC = DEFAULT_UNIFORM_INIT
 DEFAULT_METRIC = torch.nn.MSELoss(reduction='sum')
 DEFAULT_MARGIN = 0.1
 DEFAULT_NEGATIVE_MARGIN = -0.1
 DEFAULT_RANDOM_DIRECTIONS = True
-DEFAULT_ORTHOGONAL_DIRECTIONS = False
+DEFAULT_ORTHOGONAL_DIRECTIONS = True
 DEFAULT_NORMALIZED_DIRECTIONS = True
-NUM_POINTS = 5
+DEFAULT_USE_STATE_DICT = True
+NUM_POINTS = 20 
 N_DIMENSIONS = 2
 
 # CUDA must be the same as during training
 USE_CUDA = True
 
-PICKLE_FILE = PROJECT_DIR / 'results' / 'trained_model' / 'model_epoch_1.lzma'
+PICKLE_FILE = PROJECT_DIR / 'results' / 'baseline' / 'trained_model' / 'FP32_model.lzma'
 
 if REPRODUCIBILITY:
     torch.manual_seed(0)
@@ -59,13 +68,15 @@ class LandscapePlotter(object):
     __meshes = None
     __losses = None
     __ranges = None
+    __init_func = None
 
-    def __init__(self, n_dimensions, margin=DEFAULT_MARGIN, num_points=NUM_POINTS):
+    def __init__(self, n_dimensions, init_func=DEFAULT_INIT_FUNC, margin=DEFAULT_MARGIN, num_points=NUM_POINTS):
         super().__init__()
 
         self.__n_dimensions = n_dimensions
         self.__margin = margin
         self.__num_points = num_points
+        self.__init_func = init_func
 
     @property
     def dict(self):
@@ -140,10 +151,34 @@ class LandscapePlotter(object):
 
     # can be improved by adding options for normalization, filter-wide, layer-wide
     # and randomness
-    def generate_directions(self, normalize=DEFAULT_NORMALIZED_DIRECTIONS,
-                                  orthogonalize=DEFAULT_ORTHOGONAL_DIRECTIONS):
-        weights = self.__model_loader.named_weights
-        directions = collections.OrderedDict((k, tuple(torch.randn_like(w) for x in range(self.__n_dimensions))) for k, w in weights.items())
+    # also target model with directions to reach it and PCA to obtain normal
+    # components
+    def generate_directions(self, use_state_dict=DEFAULT_USE_STATE_DICT,
+                            normalize=DEFAULT_NORMALIZED_DIRECTIONS,
+                            orthogonalize=DEFAULT_ORTHOGONAL_DIRECTIONS):
+        if use_state_dict:
+            weights = self.__model_loader.state_dict
+        else:
+            weights = self.__model_loader.named_weights
+        directions = collections.OrderedDict((k, tuple(self.__init_func(w) for x in range(self.__n_dimensions))) for k, w in weights.items())
+
+        if orthogonalize:
+            for k, dirs in directions.items():
+                # to work properly they must be stacked on the last dimension with dim=-1
+                # due to the numerical stability of QR factorization, the error is generally
+                # around 1e-6, so it must be taken into account when using it with small values
+                matrix = torch.stack(dirs, dim=-1)
+                q = torch.qr(matrix)[0]
+                directions[k] = torch.unbind(q, dim=-1)
+
+        if normalize:
+            # use torch.nn.functional.normalize
+            # in the paper they don't actually normalize but they multiply by
+            # the weights to normalize wrt them
+            for k, d in directions.items():
+                for dir_ in d:
+                    dir_.mul_(weights[k])
+
         self.__directions = directions
 
     @staticmethod
@@ -383,8 +418,8 @@ def main():
     elif N_DIMENSIONS == 2:
         ax = fig.add_subplot(1, 1, 1, projection='3d')
         ax.plot_surface(*loss_plotter.meshes, numpy.transpose(loss_plotter.losses))
-    plt.show()
-
+    # plt.show()
+    plt.savefig(str(PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'loss_{}.pdf').format(NUM_POINTS), bbox_inches="tight", pad_inches=0.2)
 
 
 if __name__ == '__main__':
