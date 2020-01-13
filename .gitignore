@@ -108,5 +108,8 @@ venv.bak/
 # Custom ignores
 # VSCode
 .vscode
+
+#
 data
 results
+weight_plotting_figures
