@@ -41,7 +41,7 @@ DEFAULT_RANDOM_DIRECTIONS = True
 DEFAULT_ORTHOGONAL_DIRECTIONS = True
 DEFAULT_NORMALIZED_DIRECTIONS = True
 DEFAULT_USE_STATE_DICT = True
-NUM_POINTS = 2
+NUM_POINTS = 20
 N_DIMENSIONS = 2
 
 DEFAULT_SAVE_LOSSES = False
@@ -202,7 +202,7 @@ class LandscapePlotter(object):
 
         self.__directions = directions
         stop = timeit.default_timer()
-        print("Time: {} s\n".format(start - stop))
+        print("Time: {} s\n".format(stop - start))
 
     @staticmethod
     def compute_shifted_weights(weights, directions, coeffs):
@@ -227,7 +227,7 @@ class LandscapePlotter(object):
                 l = l.get('loss', float('+inf'))
             losses.__setitem__(idx, l)
             stop = timeit.default_timer()
-            print("Time: {} s\n".format(start - stop))
+            print("Time: {} s\n".format(stop - start))
         self.__losses = losses
 
 # to handle everything, create a class per each model which does the loading
@@ -437,7 +437,7 @@ def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES):
         loss_plotter = LandscapePlotter.load_dict(utils.load(filename))
         loss_plotter.add_loader(model_loader)
     else:
-        print("File {} not found, generating new data...")
+        print("File {} not found, generating new data...".format(str(test_filename)))
         loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
         loss_plotter.add_loader(model_loader)
         loss_plotter.generate_directions()
@@ -456,8 +456,8 @@ def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES):
     elif N_DIMENSIONS == 2:
         ax = fig.add_subplot(1, 1, 1, projection='3d')
         ax.plot_surface(*loss_plotter.meshes, numpy.transpose(loss_plotter.losses))
-    plt.show()
-    # plt.savefig(str(PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'loss_{}.pdf').format(NUM_POINTS), bbox_inches="tight", pad_inches=0.2)
+    #plt.show()
+    plt.savefig(str(PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'loss_{}.pdf').format(NUM_POINTS), bbox_inches="tight", pad_inches=0.2)
 
 
 if __name__ == '__main__':
