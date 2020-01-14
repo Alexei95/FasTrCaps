@@ -7,6 +7,7 @@ import os
 import pathlib
 import pprint
 import sys
+import timeit
 
 import numpy
 import torch
@@ -49,6 +50,7 @@ DEFAULT_SAVE_LOSSES = False
 USE_CUDA = True
 
 PICKLE_FILE = PROJECT_DIR / 'results' / 'baseline' / 'trained_model' / 'FP32_model.lzma'
+DEFAULT_TEST_FILENAME = PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / ('test_{}.lzma'.format(NUM_POINTS))
 
 if REPRODUCIBILITY:
     torch.manual_seed(0)
@@ -90,22 +92,28 @@ class LandscapePlotter(object):
                                         ('num_points', self.__num_points),
                                         ('meshes', self.__meshes),
                                         ('losses', self.__losses),
-                                        ('ranges', self.__ranges)))
+                                        ('ranges', self.__ranges),
+                                        ('init_func', self.__init_func)))
 
     # not fully working
     @classmethod
     def load_dict(cls, dict_):
-        instance = cls(n_dimensions=dict_['n_dimensions'],
+        print("Loading dict data...")
+        start = timeit.default_timer()
+        instance = cls(n_dimensions=dict_.get('n_dimensions', N_DIMENSIONS),
                        margin=dict_.get('margin', DEFAULT_MARGIN),
                        num_points=dict_.get('num_points', NUM_POINTS))
         instance.load_data(dict_=dict_)
+        stop = timeit.default_timer()
+        print("Time: {} s\n".format(stop - start))
         return instance
 
     def load_data(self, dict_):
-        self.__directions = dict_['directions']
-        self.__meshes = dict_['meshes']
-        self.__losses = dict_['losses']
-        self.__ranges = dict_['ranges']
+        self.__directions = dict_.get('directions', collections.OrderedDict())
+        self.__meshes = dict_.get('meshes', numpy.array())
+        self.__losses = dict_.get('losses', numpy.array())
+        self.__ranges = dict_.get('ranges', numpy.array())
+        self.__init_func = dict_.get('init_func', lambda x: x)
 
     @property
     def mesh_points(self):
@@ -168,7 +176,7 @@ class LandscapePlotter(object):
                             normalize=DEFAULT_NORMALIZED_DIRECTIONS,
                             orthogonalize=DEFAULT_ORTHOGONAL_DIRECTIONS):
         print("Generating directions...")
-        start = timer.timer()
+        start = timeit.default_timer()
         if use_state_dict:
             weights = self.__model_loader.state_dict
         else:
@@ -193,8 +201,8 @@ class LandscapePlotter(object):
                     dir_.mul_(weights[k])
 
         self.__directions = directions
-        stop = timer.timer()
-        print("Time: {}\n".format(start - stop))
+        stop = timeit.default_timer()
+        print("Time: {} s\n".format(start - stop))
 
     @staticmethod
     def compute_shifted_weights(weights, directions, coeffs):
@@ -210,16 +218,16 @@ class LandscapePlotter(object):
         losses = numpy.zeros(dimensions)
         indexes = itertools.product(*[range(dim) for dim in dimensions])
         for i, idx in enumerate(indexes, start=1):
-            print('Running index #{}'.format(i))
-            start = timer.timer()
+            print('Running index #{}...'.format(i))
+            start = timeit.default_timer()
             coeffs = tuple(self.__meshes[i][idx] for i in range(self.__n_dimensions))
             updated_weights = self.compute_shifted_weights(self.__model_loader.named_weights, self.__directions, coeffs)
             l = self.__model_loader.run_test_epoch(parameters=updated_weights)
             if callable(getattr(l, 'get', None)):
                 l = l.get('loss', float('+inf'))
             losses.__setitem__(idx, l)
-            stop = timer.timer()
-            print("Time: {}\n".format(start - stop))
+            stop = timeit.default_timer()
+            print("Time: {} s\n".format(start - stop))
         self.__losses = losses
 
 # to handle everything, create a class per each model which does the loading
@@ -249,8 +257,8 @@ class CapsNetLoader(object):
     __regularization_scale = None
 
     def load_model(self, pickle_file):
-        print("Loading model")
-        start = timer.timer()
+        print("Loading model...")
+        start = timeit.default_timer()
         obj = utils.load(pickle_file)
         args = obj['args']
         self.__model = obj['model']
@@ -273,8 +281,8 @@ class CapsNetLoader(object):
             self.__device = device
 
         self.__one_hot_encode = obj['one_hot_encode']
-        stop = timer.timer()
-        print("Time: {}\n".format(stop - start))
+        stop = timeit.default_timer()
+        print("Time: {} s\n".format(stop - start))
 
     def save_backup_parameters(self):
         self.__backup_parameters = self.named_weights
@@ -421,14 +429,15 @@ class CapsNetLoader(object):
 # - plot all the points
 
 
-def main(save_losses=DEFAULT_SAVE_LOSSES):
+def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES):
     model_loader = CapsNetLoader()
     model_loader.load_model(PICKLE_FILE)
-    filename = PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma'
-    if filename.exists():
+    if test_filename.exists():
+        print("File {} exists, loading dict data...".format(str(test_filename)))
         loss_plotter = LandscapePlotter.load_dict(utils.load(filename))
         loss_plotter.add_loader(model_loader)
     else:
+        print("File {} not found, generating new data...")
         loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
         loss_plotter.add_loader(model_loader)
         loss_plotter.generate_directions()
@@ -436,7 +445,7 @@ def main(save_losses=DEFAULT_SAVE_LOSSES):
         loss_plotter.compute_loss()
 
         if save_losses:
-            utils.dump(loss_plotter.dict, filename=PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma')
+            utils.dump(loss_plotter.dict, filename=test_filename)
 
     fig = plt.figure(figsize=(15, 7), dpi=100)
     print(loss_plotter.ranges)
