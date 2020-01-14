@@ -23,10 +23,12 @@ if str(PROJECT_DIR) not in sys.path:
 
 import src.utils as utils
 
+DEFAULT_LOWER_ENDPOINT = -1
+DEFAULT_HIGHER_ENDPOINT = 1
 
 def DEFAULT_UNIFORM_INIT(tensor):
     new_t = torch.empty_like(tensor)
-    new_t.uniform_(-1, 1)
+    new_t.uniform_(DEFAULT_LOWER_ENDPOINT, DEFAULT_HIGHER_ENDPOINT)
     return new_t
 
 
@@ -96,7 +98,14 @@ class LandscapePlotter(object):
         instance = cls(n_dimensions=dict_['n_dimensions'],
                        margin=dict_.get('margin', DEFAULT_MARGIN),
                        num_points=dict_.get('num_points', NUM_POINTS))
+        instance.load_data(dict_=dict_)
         return instance
+
+    def load_data(self, dict_):
+        self.__directions = dict_['directions']
+        self.__meshes = dict_['meshes']
+        self.__losses = dict_['losses']
+        self.__ranges = dict_['ranges']
 
     @property
     def mesh_points(self):
@@ -158,6 +167,8 @@ class LandscapePlotter(object):
     def generate_directions(self, use_state_dict=DEFAULT_USE_STATE_DICT,
                             normalize=DEFAULT_NORMALIZED_DIRECTIONS,
                             orthogonalize=DEFAULT_ORTHOGONAL_DIRECTIONS):
+        print("Generating directions...")
+        start = timer.timer()
         if use_state_dict:
             weights = self.__model_loader.state_dict
         else:
@@ -182,6 +193,8 @@ class LandscapePlotter(object):
                     dir_.mul_(weights[k])
 
         self.__directions = directions
+        stop = timer.timer()
+        print("Time: {}\n".format(start - stop))
 
     @staticmethod
     def compute_shifted_weights(weights, directions, coeffs):
@@ -196,13 +209,17 @@ class LandscapePlotter(object):
         dimensions = self.__meshes[0].shape if self.__n_dimensions > 0 else tuple()
         losses = numpy.zeros(dimensions)
         indexes = itertools.product(*[range(dim) for dim in dimensions])
-        for idx in indexes:
+        for i, idx in enumerate(indexes, start=1):
+            print('Running index #{}'.format(i))
+            start = timer.timer()
             coeffs = tuple(self.__meshes[i][idx] for i in range(self.__n_dimensions))
             updated_weights = self.compute_shifted_weights(self.__model_loader.named_weights, self.__directions, coeffs)
             l = self.__model_loader.run_test_epoch(parameters=updated_weights)
             if callable(getattr(l, 'get', None)):
                 l = l.get('loss', float('+inf'))
             losses.__setitem__(idx, l)
+            stop = timer.timer()
+            print("Time: {}\n".format(start - stop))
         self.__losses = losses
 
 # to handle everything, create a class per each model which does the loading
@@ -232,6 +249,8 @@ class CapsNetLoader(object):
     __regularization_scale = None
 
     def load_model(self, pickle_file):
+        print("Loading model")
+        start = timer.timer()
         obj = utils.load(pickle_file)
         args = obj['args']
         self.__model = obj['model']
@@ -254,6 +273,8 @@ class CapsNetLoader(object):
             self.__device = device
 
         self.__one_hot_encode = obj['one_hot_encode']
+        stop = timer.timer()
+        print("Time: {}\n".format(stop - start))
 
     def save_backup_parameters(self):
         self.__backup_parameters = self.named_weights
@@ -403,14 +424,19 @@ class CapsNetLoader(object):
 def main(save_losses=DEFAULT_SAVE_LOSSES):
     model_loader = CapsNetLoader()
     model_loader.load_model(PICKLE_FILE)
-    loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
-    loss_plotter.add_loader(model_loader)
-    loss_plotter.generate_directions()
-    loss_plotter.generate_meshes()
-    loss_plotter.compute_loss()
+    filename = PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma'
+    if filename.exists():
+        loss_plotter = LandscapePlotter.load_dict(utils.load(filename))
+        loss_plotter.add_loader(model_loader)
+    else:
+        loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
+        loss_plotter.add_loader(model_loader)
+        loss_plotter.generate_directions()
+        loss_plotter.generate_meshes()
+        loss_plotter.compute_loss()
 
-    if save_losses:
-        utils.dump(loss_plotter.dict, filename=PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma')
+        if save_losses:
+            utils.dump(loss_plotter.dict, filename=PROJECT_DIR / 'results' / 'weight_plotting' / 'test.lzma')
 
     fig = plt.figure(figsize=(15, 7), dpi=100)
     print(loss_plotter.ranges)
