@@ -35,22 +35,29 @@ def DEFAULT_UNIFORM_INIT(tensor):
 
 DEFAULT_INIT_FUNC = DEFAULT_UNIFORM_INIT
 DEFAULT_METRIC = torch.nn.MSELoss(reduction='sum')
-DEFAULT_MARGIN = 0.1
-DEFAULT_NEGATIVE_MARGIN = -0.1
+DEFAULT_MARGIN = 3
+DEFAULT_NEGATIVE_MARGIN = -3
 DEFAULT_RANDOM_DIRECTIONS = True
 DEFAULT_ORTHOGONAL_DIRECTIONS = True
 DEFAULT_NORMALIZED_DIRECTIONS = True
 DEFAULT_USE_STATE_DICT = True
-NUM_POINTS = 40
+NUM_POINTS = 15
 N_DIMENSIONS = 2
 DEFAULT_LOAD_DIRECTIONS = True
-DEFAULT_DIRECTIONS_FILENAME = PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'test_4.lzma'
-DEFAULT_LOG_FILE = PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / ('log_{}.log'.format(NUM_POINTS))
+
+LOADING_DIRECTORY = PROJECT_DIR / 'results' / 'baseline_1_epoch'
+OUTPUT_DIRECTORY = LOADING_DIRECTORY / 'weight_plotting'
+DEFAULT_DIRECTIONS_FILENAME = OUTPUT_DIRECTORY / 'test_15.lzma'
+DEFAULT_LOG_FILE = OUTPUT_DIRECTORY / ('log_{}.log'.format(NUM_POINTS))
+DEFAULT_PDF_OUTPUT_FILE = OUTPUT_DIRECTORY / ('loss_{}.pdf'.format(NUM_POINTS))
+PICKLE_FILE = LOADING_DIRECTORY / 'trained_model' / 'FP32_model.lzma'
+DEFAULT_TEST_FILENAME = OUTPUT_DIRECTORY / ('test_{}.lzma'.format(NUM_POINTS))
 
 
-def write_text(text, file=DEFAULT_LOG_FILE):
+def write_text(text, file_=DEFAULT_LOG_FILE):
     print(text, flush=True)
-    with open(file, 'a') as f:
+    file_.parent.mkdir(exist_ok=True, parents=True)
+    with file_.open(mode='a') as f:
         print(text, file=f, flush=True)
 
 
@@ -60,8 +67,6 @@ DEFAULT_SAVE_LOSSES = True
 # CUDA must be the same as during training
 USE_CUDA = True
 
-PICKLE_FILE = PROJECT_DIR / 'results' / 'baseline' / 'trained_model' / 'FP32_model.lzma'
-DEFAULT_TEST_FILENAME = PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / ('test_{}.lzma'.format(NUM_POINTS))
 DEFAULT_LOAD_TEST = True
 
 if REPRODUCIBILITY:
@@ -311,13 +316,15 @@ class CapsNetLoader(object):
 
     @property
     def named_weights(self):
-        return collections.OrderedDict(self.__model.named_parameters())
+        # the parameters must be cloned because they reference positions in memory
+        return collections.OrderedDict((name, t.clone()) for name, t in self.__model.named_parameters())
 
     @property
     def state_dict(self):
         return self.__model.state_dict()
 
     def update_parameters(self, parameters, strict=False):
+        # load_state_dict clones the parameters so that they are not related to the same memory
         self.__model.load_state_dict(parameters, strict=strict)
 
     @staticmethod
@@ -444,16 +451,16 @@ class CapsNetLoader(object):
 # - plot all the points
 
 
-def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES, load_test=DEFAULT_LOAD_TEST, load_directions=DEFAULT_LOAD_DIRECTIONS, directions_filename=DEFAULT_DIRECTIONS_FILENAME):
+def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES, load_test=DEFAULT_LOAD_TEST, load_directions=DEFAULT_LOAD_DIRECTIONS, directions_filename=DEFAULT_DIRECTIONS_FILENAME, model=PICKLE_FILE, output_pdf=DEFAULT_PDF_OUTPUT_FILE, n_dim=N_DIMENSIONS):
     model_loader = CapsNetLoader()
-    model_loader.load_model(PICKLE_FILE)
+    model_loader.load_model(model)
     if load_test and test_filename.exists():
         write_text("File {} exists, loading dict data...".format(str(test_filename)))
-        loss_plotter = LandscapePlotter.load_dict(utils.load(filename))
+        loss_plotter = LandscapePlotter.load_dict(utils.load(test_filename))
         loss_plotter.add_loader(model_loader)
     else:
         write_text("File {} not found...".format(str(test_filename)))
-        loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
+        loss_plotter = LandscapePlotter(n_dimensions=n_dim)
         loss_plotter.add_loader(model_loader)
         if load_directions and directions_filename.exists():
             write_text("Loading dimensions...")
@@ -472,14 +479,14 @@ def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES, l
     fig = plt.figure(figsize=(15, 7), dpi=100)
     write_text(loss_plotter.ranges)
     write_text(loss_plotter.losses)
-    if N_DIMENSIONS == 1:
+    if n_dim == 1:
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(*loss_plotter.ranges, loss_plotter.losses)
-    elif N_DIMENSIONS == 2:
+    elif n_dim == 2:
         ax = fig.add_subplot(1, 1, 1, projection='3d')
         ax.plot_surface(*loss_plotter.meshes, numpy.transpose(loss_plotter.losses))
     #plt.show()
-    plt.savefig(str(PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'loss_{}.pdf').format(NUM_POINTS), bbox_inches="tight", pad_inches=0.2)
+    plt.savefig(str(output_pdf), bbox_inches="tight", pad_inches=0.2)
 
 
 if __name__ == '__main__':
