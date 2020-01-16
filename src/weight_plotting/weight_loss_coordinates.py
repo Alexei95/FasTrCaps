@@ -45,8 +45,9 @@ NUM_POINTS = 40
 N_DIMENSIONS = 2
 DEFAULT_LOAD_DIRECTIONS = True
 DEFAULT_DIRECTIONS_FILENAME = PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / 'test_4.lzma'
-
 DEFAULT_LOG_FILE = PROJECT_DIR / 'results' / 'baseline' / 'weight_plotting' / ('log_{}.log'.format(NUM_POINTS))
+
+
 def write_text(text, file=DEFAULT_LOG_FILE):
     print(text, flush=True)
     with open(file, 'a') as f:
@@ -451,7 +452,7 @@ def main(test_filename=DEFAULT_TEST_FILENAME, save_losses=DEFAULT_SAVE_LOSSES, l
         loss_plotter = LandscapePlotter.load_dict(utils.load(filename))
         loss_plotter.add_loader(model_loader)
     else:
-        write_text("File {} not found, generating new data...".format(str(test_filename)))
+        write_text("File {} not found...".format(str(test_filename)))
         loss_plotter = LandscapePlotter(n_dimensions=N_DIMENSIONS)
         loss_plotter.add_loader(model_loader)
         if load_directions and directions_filename.exists():
