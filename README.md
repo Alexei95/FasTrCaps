@@ -1,7 +1,7 @@
 # FasTrCaps: An Integrated Framework for Fast yet Accurate Training of Capsule Networks
 
 
-This is the source code for the paper **FasTrCaps: An Integrated Framework for Fast yet Accurate Training of Capsule Networks**, accepted at [IJCNN2020](https://wcci2020.org/)
+This is the source code for the paper **FasTrCaps: An Integrated Framework for Fast yet Accurate Training of Capsule Networks**, to appear at [IJCNN2020](https://wcci2020.org/).
 
 The citation for this work will be updated when the proceedings are published.
 
