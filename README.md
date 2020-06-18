@@ -18,7 +18,7 @@ The citation for this work will be updated when the proceedings are published. T
 
 ## License
 
-This code is licensed under the MIT License, which allows any type of reuse as long as a copy of the license
+This code is licensed under the MIT License, which allows any type of reuse as long as a copy of the original license is provided with the redistributed program.
 
 
 ## Code structure
